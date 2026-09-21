@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>reportTool style guide</title>
+<style>
+  :root {
+    --primary: #1E40AF;
+    --secondary: #334155;
+    --background: #F8FAFC;
+    --surface: #FFFFFF;
+    --text: #0F172A;
+    --error: #B91C1C;
+    --success: #15803D;
+    --border: #CBD5E1;
+    --space-1: 4px;
+    --space-2: 8px;
+    --space-3: 12px;
+    --space-4: 16px;
+    --space-5: 24px;
+    --space-6: 32px;
+    --space-7: 48px;
+    --font-sans: -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    --font-mono: ui-monospace, "SFMono-Regular", Consolas, "Liberation Mono", monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    background: var(--background);
+    color: var(--text);
+    font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.5;
+  }
+
+  main {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: var(--space-7) var(--space-5);
+  }
+
+  h1 { font-size: 28px; line-height: 34px; font-weight: 600; margin: 0 0 var(--space-2); }
+  h2 { font-size: 20px; line-height: 26px; font-weight: 600; margin: var(--space-7) 0 var(--space-4); border-bottom: 1px solid var(--border); padding-bottom: var(--space-2); }
+  h3 { font-size: 16px; line-height: 22px; font-weight: 600; margin: 0 0 var(--space-3); }
+  p { margin: 0 0 var(--space-4); }
+
+  .lede { color: var(--secondary); max-width: 640px; }
+
+  .provisional {
+    display: inline-block;
+    font-size: 12px;
+    font-weight: 500;
+    color: var(--secondary);
+    background: var(--surface);
+    border: 1px dashed var(--border);
+    border-radius: 4px;
+    padding: 2px 8px;
+    margin-bottom: var(--space-4);
+  }
+
+  section.card, .panel {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: var(--space-5);
+  }
+
+  .logo-row {
+    display: flex;
+    align-items: center;
+    gap: var(--space-5);
+    flex-wrap: wrap;
+  }
+  .logo-row svg { display: block; }
+  .logo-sizes { display: flex; align-items: flex-end; gap: var(--space-5); }
+  .logo-sizes figure { margin: 0; text-align: center; }
+  .logo-sizes figcaption { font-size: 12px; color: var(--secondary); margin-top: var(--space-2); }
+
+  .swatches {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    gap: var(--space-4);
+  }
+  .swatch {
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    overflow: hidden;
+    background: var(--surface);
+  }
+  .swatch .fill { height: 64px; }
+  .swatch .meta { padding: var(--space-3); }
+  .swatch .name { font-weight: 600; font-size: 13px; }
+  .swatch .hex { font-family: var(--font-mono); font-size: 12px; color: var(--secondary); }
+
+  .type-scale .row {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: var(--space-4);
+    padding: var(--space-3) 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .type-scale .row:last-child { border-bottom: none; }
+  .type-scale .label { width: 160px; flex: none; font-size: 12px; color: var(--secondary); }
+  .type-scale .sample { flex: 1; }
+  .page-title-sample { font-size: 28px; line-height: 34px; font-weight: 600; }
+  .section-title-sample { font-size: 20px; line-height: 26px; font-weight: 600; }
+  .panel-title-sample { font-size: 16px; line-height: 22px; font-weight: 600; }
+  .body-sample { font-size: 14px; line-height: 20px; font-weight: 400; }
+  .label-sample { font-size: 13px; line-height: 18px; font-weight: 500; }
+  .meta-sample { font-size: 12px; line-height: 16px; font-weight: 400; }
+  .mono-sample { font-family: var(--font-mono); font-size: 13px; }
+
+  .spacing-scale { display: flex; align-items: flex-end; gap: var(--space-4); flex-wrap: wrap; }
+  .spacing-block { text-align: center; }
+  .spacing-block .bar { background: var(--primary); border-radius: 2px; }
+  .spacing-block .label { font-size: 12px; color: var(--secondary); margin-top: var(--space-2); font-family: var(--font-mono); }
+
+  .component-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    gap: var(--space-5);
+  }
+
+  button {
+    font-family: inherit;
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: 6px;
+    padding: 8px 16px;
+    cursor: pointer;
+    border: 1px solid transparent;
+  }
+  .btn-primary { background: var(--primary); color: var(--surface); }
+  .btn-primary:hover { background: #1B3897; }
+  .btn-secondary { background: var(--surface); color: var(--secondary); border-color: var(--secondary); }
+  .btn-secondary:hover { background: #F1F5F9; }
+  .btn-destructive { background: var(--error); color: var(--surface); }
+  .btn-destructive:hover { background: #9C1B15; }
+  .btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+  button:focus-visible, input:focus-visible, a:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+  }
+
+  label.field-label { display: block; font-size: 13px; font-weight: 500; margin-bottom: var(--space-2); }
+  input[type="text"] {
+    font-family: inherit;
+    font-size: 14px;
+    width: 100%;
+    padding: 8px 12px;
+    border: 1px solid var(--secondary);
+    border-radius: 6px;
+    background: var(--surface);
+    color: var(--text);
+  }
+  input.has-error { border-color: var(--error); }
+  .field-error { color: var(--error); font-size: 12px; margin-top: var(--space-2); display: flex; align-items: center; gap: 4px; }
+
+  a.sample-link { color: var(--primary); }
+  a.sample-link:hover { text-decoration: underline; }
+
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    font-size: 12px;
+    font-weight: 500;
+    padding: 2px 10px;
+    border-radius: 999px;
+  }
+  .badge-draft { background: #E2E8F0; color: var(--secondary); }
+  .badge-tech-review { background: #DBEAFE; color: var(--primary); }
+  .badge-final-review { background: #FEF3C7; color: #854D0E; }
+  .badge-accepted { background: #DCFCE7; color: var(--success); }
+
+  .field-group { margin-bottom: var(--space-5); }
+
+  footer { color: var(--secondary); font-size: 12px; margin-top: var(--space-7); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    button, input, a { transition: background-color 150ms ease, border-color 150ms ease; }
+  }
+</style>
+</head>
+<body>
+<main>
+
+  <header>
+    <div class="logo-row">
+      <svg width="48" height="48" viewBox="0 0 64 64" role="img" aria-labelledby="sg-logo-title">
+        <title id="sg-logo-title">reportTool logo</title>
+        <path d="M32 4 L54 12 V30 C54 45 44 55 32 60 C20 55 10 45 10 30 V12 Z" fill="#1E40AF"/>
+        <path d="M32 4 L54 12 V30 C54 45 44 55 32 60 Z" fill="#1D4ED8"/>
+        <path d="M22 20 H38 L44 26 V46 H22 Z" fill="#FFFFFF"/>
+        <path d="M38 20 L44 26 H38 Z" fill="#DBEAFE"/>
+        <rect x="26" y="30" width="14" height="2.4" fill="#1E3A8A"/>
+        <rect x="26" y="35" width="14" height="2.4" fill="#1E3A8A"/>
+        <rect x="26" y="40" width="9" height="2.4" fill="#1E3A8A"/>
+      </svg>
+      <div>
+        <h1>reportTool style guide</h1>
+        <p class="lede">Reference implementation of the tokens and components defined in <code>DESIGN.md</code>. Anything marked "provisional" below is a placeholder pending an open decision, not a final design.</p>
+      </div>
+    </div>
+  </header>
+
+  <section>
+    <h2>Logo</h2>
+    <div class="panel logo-sizes">
+      <figure>
+        <svg width="20" height="20" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M32 4 L54 12 V30 C54 45 44 55 32 60 C20 55 10 45 10 30 V12 Z" fill="#1E40AF"/>
+          <path d="M32 4 L54 12 V30 C54 45 44 55 32 60 Z" fill="#1D4ED8"/>
+          <path d="M22 20 H38 L44 26 V46 H22 Z" fill="#FFFFFF"/>
+          <path d="M38 20 L44 26 H38 Z" fill="#DBEAFE"/>
+          <rect x="26" y="30" width="14" height="2.4" fill="#1E3A8A"/>
+          <rect x="26" y="35" width="14" height="2.4" fill="#1E3A8A"/>
+          <rect x="26" y="40" width="9" height="2.4" fill="#1E3A8A"/>
+        </svg>
+        <figcaption>20px (minimum)</figcaption>
+      </figure>
+      <figure>
+        <svg width="40" height="40" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M32 4 L54 12 V30 C54 45 44 55 32 60 C20 55 10 45 10 30 V12 Z" fill="#1E40AF"/>
+          <path d="M32 4 L54 12 V30 C54 45 44 55 32 60 Z" fill="#1D4ED8"/>
+          <path d="M22 20 H38 L44 26 V46 H22 Z" fill="#FFFFFF"/>
+          <path d="M38 20 L44 26 H38Z" fill="#DBEAFE"/>
+          <rect x="26" y="30" width="14" height="2.4" fill="#1E3A8A"/>
+          <rect x="26" y="35" width="14" height="2.4" fill="#1E3A8A"/>
+          <rect x="26" y="40" width="9" height="2.4" fill="#1E3A8A"/>
+        </svg>
+        <figcaption>40px</figcaption>
+      </figure>
+      <figure>
+        <svg width="80" height="80" viewBox="0 0 64 64" aria-hidden="true">
+          <path d="M32 4 L54 12 V30 C54 45 44 55 32 60 C20 55 10 45 10 30 V12 Z" fill="#1E40AF"/>
+          <path d="M32 4 L54 12 V30 C54 45 44 55 32 60 Z" fill="#1D4ED8"/>
+          <path d="M22 20 H38 L44 26 V46 H22 Z" fill="#FFFFFF"/>
+          <path d="M38 20 L44 26 H38 Z" fill="#DBEAFE"/>
+          <rect x="26" y="30" width="14" height="2.4" fill="#1E3A8A"/>
+          <rect x="26" y="35" width="14" height="2.4" fill="#1E3A8A"/>
+          <rect x="26" y="40" width="9" height="2.4" fill="#1E3A8A"/>
+        </svg>
+        <figcaption>80px</figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section>
+    <h2>Color palette</h2>
+    <div class="swatches">
+      <div class="swatch">
+        <div class="fill" style="background: var(--primary);"></div>
+        <div class="meta"><div class="name">primary</div><div class="hex">#1E40AF</div></div>
+      </div>
+      <div class="swatch">
+        <div class="fill" style="background: var(--secondary);"></div>
+        <div class="meta"><div class="name">secondary</div><div class="hex">#334155</div></div>
+      </div>
+      <div class="swatch">
+        <div class="fill" style="background: var(--background); border-bottom: 1px solid var(--border);"></div>
+        <div class="meta"><div class="name">background</div><div class="hex">#F8FAFC</div></div>
+      </div>
+      <div class="swatch">
+        <div class="fill" style="background: var(--surface); border-bottom: 1px solid var(--border);"></div>
+        <div class="meta"><div class="name">surface</div><div class="hex">#FFFFFF</div></div>
+      </div>
+      <div class="swatch">
+        <div class="fill" style="background: var(--text);"></div>
+        <div class="meta"><div class="name">text</div><div class="hex">#0F172A</div></div>
+      </div>
+      <div class="swatch">
+        <div class="fill" style="background: var(--error);"></div>
+        <div class="meta"><div class="name">error</div><div class="hex">#B91C1C</div></div>
+      </div>
+      <div class="swatch">
+        <div class="fill" style="background: var(--success);"></div>
+        <div class="meta"><div class="name">success</div><div class="hex">#15803D</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Typography</h2>
+    <div class="panel type-scale">
+      <div class="row"><div class="label">Page title / 28/34 / 600</div><div class="sample page-title-sample">Engagement overview</div></div>
+      <div class="row"><div class="label">Section title / 20/26 / 600</div><div class="sample section-title-sample">Findings</div></div>
+      <div class="row"><div class="label">Panel title / 16/22 / 600</div><div class="sample panel-title-sample">Affected assets</div></div>
+      <div class="row"><div class="label">Body / 14/20 / 400</div><div class="sample body-sample">Reflected XSS was identified in the search parameter of the customer portal.</div></div>
+      <div class="row"><div class="label">Label / 13/18 / 500</div><div class="sample label-sample">Severity</div></div>
+      <div class="row"><div class="label">Metadata / 12/16 / 400</div><div class="sample meta-sample">Submitted by J. Rivera · 2026-09-18</div></div>
+      <div class="row"><div class="label">Monospace</div><div class="sample mono-sample">CWE-79 · ASVS V5.3.3 · 203.0.113.10</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Spacing scale</h2>
+    <div class="panel spacing-scale">
+      <div class="spacing-block"><div class="bar" style="width: 4px; height: 4px;"></div><div class="label">4</div></div>
+      <div class="spacing-block"><div class="bar" style="width: 8px; height: 8px;"></div><div class="label">8</div></div>
+      <div class="spacing-block"><div class="bar" style="width: 12px; height: 12px;"></div><div class="label">12</div></div>
+      <div class="spacing-block"><div class="bar" style="width: 16px; height: 16px;"></div><div class="label">16</div></div>
+      <div class="spacing-block"><div class="bar" style="width: 24px; height: 24px;"></div><div class="label">24</div></div>
+      <div class="spacing-block"><div class="bar" style="width: 32px; height: 32px;"></div><div class="label">32</div></div>
+      <div class="spacing-block"><div class="bar" style="width: 48px; height: 48px;"></div><div class="label">48</div></div>
+    </div>
+  </section>
+
+  <section>
+    <h2>Components</h2>
+    <div class="component-grid">
+
+      <div class="panel">
+        <h3>Buttons</h3>
+        <div style="display:flex; gap: var(--space-3); flex-wrap: wrap; align-items:center;">
+          <button class="btn-primary">Submit for review</button>
+          <button class="btn-secondary">Save draft</button>
+          <button class="btn-destructive">Delete credential</button>
+          <button class="btn-primary" disabled>Accept revision</button>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Inputs &amp; form feedback</h3>
+        <div class="field-group">
+          <label class="field-label" for="finding-title">Finding title</label>
+          <input type="text" id="finding-title" value="Reflected XSS in search parameter">
+        </div>
+        <div class="field-group">
+          <label class="field-label" for="finding-severity">Severity</label>
+          <input type="text" id="finding-severity" class="has-error" value="">
+          <div class="field-error">⚠ Severity is required before submitting for review.</div>
+        </div>
+      </div>
+
+      <div class="panel">
+        <h3>Links</h3>
+        <p>See the related <a href="#" class="sample-link">discovered asset</a> and the <a href="#" class="sample-link">import job</a> that produced this finding.</p>
+      </div>
+
+      <div class="panel">
+        <h3>Review status (labeled, not color-only)</h3>
+        <div style="display:flex; gap: var(--space-2); flex-wrap: wrap;">
+          <span class="badge badge-draft">● Draft</span>
+          <span class="badge badge-tech-review">● Technical Review</span>
+          <span class="badge badge-final-review">● Final Review</span>
+          <span class="badge badge-accepted">● Accepted</span>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <section>
+    <h2>Provisional placeholders</h2>
+    <div class="panel">
+      <span class="provisional">provisional — brand personality: TO BE DECIDED</span><br>
+      <span class="provisional">provisional — platform targets: TO BE DECIDED</span><br>
+      <span class="provisional">provisional — light/dark mode: TO BE DECIDED (light theme shown)</span><br>
+      <span class="provisional">provisional — severity scale/colors pending scoring methodology (DESIGN.md DQ-3)</span>
+    </div>
+  </section>
+
+  <footer>
+    Reference implementation for <code>DESIGN.md</code>. Update this file in the same commit as any token or component change.
+  </footer>
+
+</main>
+</body>
+</html>
