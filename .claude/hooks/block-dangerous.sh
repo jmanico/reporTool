@@ -4,6 +4,10 @@
 # overlaps .claude/settings.json's permission deny rules on purpose: those
 # stop the tool call, this stops the shell string that slipped past a
 # pattern (e.g. wrapped in a subshell or string concatenation).
+# Not traceable to a reporTool spec rule (no implementation exists yet to
+# protect) — this enforces the harness's own general destructive-action
+# guidance, kept here so it applies from day one rather than being added
+# later once SECURITY.md/ARCHITECTURE.md name a concrete deployment to harm.
 set -euo pipefail
 
 input="$(cat)"

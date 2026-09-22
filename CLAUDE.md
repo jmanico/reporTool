@@ -12,7 +12,7 @@ reporTool is a web and API platform for a pentest group to run and report on sec
 
 ## Rules
 
-- Every new GitHub issue MUST follow the structure in `REQUIREMENT_TEMPLATE.md`, so each issue is a structured, testable requirement.
+- Every new GitHub issue MUST follow the structure in `REQUIREMENT_TEMPLATE.md`, so each issue is a structured, testable requirement. Not mechanically enforced — no hook validates issue-body structure yet, since `gh issue create` content isn't a pattern-matchable command; this is a code-review-time check until one is written.
 
 ## Build, test, run
 
