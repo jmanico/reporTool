@@ -43,6 +43,7 @@ These stakeholder decisions extend or change facts stated in `REQUIREMENTS.md`/`
 - **Rejected terminal state (SQ-9):** `REQUIREMENTS.md` §5 documents only `Draft → Technical Review → Final Review → Accepted` with send-back-with-comments, and does not currently define a terminal `Rejected` state. `REQUIREMENTS.md` §5 and `ARCHITECTURE.md`'s finding-lifecycle description should be updated to add it.
 - **Scanner scope (SQ-5):** `REQUIREMENTS.md` §7.1 states "Burp Suite export is the first supported import source" and §12 lists additional scanners as an open question. Committing to ZAP, Nessus, and Nuclide all for v1 is a scope increase beyond "first supported source" that `REQUIREMENTS.md` §7 should reflect (FR-19–FR-21 and the import pipeline's v1 acceptance criteria).
 - **Report formats (SQ-6):** `REQUIREMENTS.md` §8's open question 6 is resolved to PDF and DOCX; `REQUIREMENTS.md` §8 should record this so FR-22–FR-25 can be scoped against a fixed format set.
+- **Backend runtime/framework version (Gin 1.12 prompt, 2026-09-21):** `ARCHITECTURE.md` names "Go, using the Gin framework" without a version. A Gin 1.12 Secure Coding Prompt supplied directly in-session pins this to **Go 1.27 baseline, Gin v1.12.0** (Gin requires Go ≥ 1.25.0). `ARCHITECTURE.md`'s "Required Architecture Inputs" table should be updated to record these versions as a fixed decision, not left implicit in `SECURITY.md` alone.
 
 ---
 
@@ -54,7 +55,7 @@ These stakeholder decisions extend or change facts stated in `REQUIREMENTS.md`/`
 | Design source | DESIGN.md |
 | Architecture source | ARCHITECTURE.md |
 | System purpose | A platform for a pentest group to run and report on security testing engagements — standardized finding capture/review/CWE-ASVS mapping, multi-customer engagement tracking, structured report generation, fine-grained access control, and safe engagement credential management (REQUIREMENTS.md §1). |
-| Application profile | Web application, API monolith. Server: Go, Gin framework (version `UNKNOWN`). Client: React SPA (version `UNKNOWN`). API style: REST/JSON. Data store: **PostgreSQL**, normalized to 3NF (SQ-10). |
+| Application profile | Web application, API monolith. Server: Go **1.27** baseline, Gin **v1.12.0** (per the Gin 1.12 Secure Coding Prompt supplied 2026-09-21 — see `REF-GIN-112`; this pins a version ARCHITECTURE.md leaves open, see "Decisions Requiring Requirements/Architecture Sync"). Client: React SPA (version `UNKNOWN`). API style: REST/JSON. Data store: **PostgreSQL**, normalized to 3NF (SQ-10). |
 | Users / actors / roles | Pentester (Author), Technical Reviewer, Final Reviewer, Engagement/Project Manager, Admin (REQUIREMENTS.md §2). **A read-only Customer/Client portal actor is now in scope for v1 (SQ-7)** — see "Decisions Requiring Requirements/Architecture Sync" above; its authentication assurance level is a new open question (SQ-14). |
 | Public interfaces and trust boundaries | Browser Client (React SPA, internal actors) and a read-only Customer/Client portal surface (new, SQ-7) are both untrusted and hold no authoritative access-control or business-rule logic. The Server-side API (Go/Gin) is the edge boundary: TLS terminus, DPoP validation, sole ABAC enforcement point. Uploaded scanner/tool export files (now Burp Suite, ZAP, Nessus, Nuclei — SQ-5) and uploaded report templates (DOCX/PDF baselines, FR-23) are untrusted input. The AWS KMS/Secrets Manager boundary is external and reached only by the API. |
 | Sensitive or regulated data | Live vulnerability data about pentest clients across the full domain hierarchy (customer, department, pentest, finding, finding field, discovered asset, imported artefact) — a high-value target (REQUIREMENTS.md §1, NFR-1). Some finding fields carry client-sensitive evidence or internal-only remediation-cost notes requiring finer-grained visibility (REQUIREMENTS.md §3.5, §6.4). Engagement credentials (VPN, scoped test accounts, API keys) (REQUIREMENTS.md §4.5). Under GDPR scope (SQ-8), finding/asset data that identifies or relates to an individual is personal data. |
@@ -98,8 +99,10 @@ No local secure-coding prompt library was found in this execution environment (c
 | `REF-AWS-WA-SEC` | AWS Well-Architected Framework — Security Pillar | https://docs.aws.amazon.com/wellarchitected/latest/security-pillar/welcome.html |
 | `REF-AWS-KMS` | AWS KMS Best Practices | https://docs.aws.amazon.com/kms/latest/developerguide/best-practices.html |
 | `REF-AWS-SECRETS` | AWS Secrets Manager Best Practices | https://docs.aws.amazon.com/secretsmanager/latest/userguide/best-practices.html |
+| `REF-GIN-112` | "Gin 1.12 Secure Coding Prompt" — an overlay for `github.com/gin-gonic/gin` v1.12.0 on a Go 1.27 baseline | User-supplied in this session, 2026-09-21; no external URL. Full text was read and is synthesized into `SEC-GIN-*` below, not copied verbatim. |
+| `REF-GO-127` | Go 1.27 secure-coding baseline prompt (referenced by `REF-GIN-112` as a prerequisite: "Apply the resolved Go 1.27 prompt first") | **Not supplied in this session** — `UNKNOWN` content. See SQ-24. |
 
-`REF-FIDO` and `REF-WEBAUTHN` are included because passkeys are explicitly selected as the minimum authenticator. `REF-AWS-*` are included now that AWS is the confirmed cloud provider (SQ-4/SQ-10). No ABAC-engine-specific cheat sheet exists in the selected library; OPA/Rego policy design guidance is sourced from `REF-ASVS-5`'s access-control chapter and `REF-API-2023`, kept general rather than citing OPA's own (non-OWASP/NIST) documentation as a security-authoritative source.
+`REF-FIDO` and `REF-WEBAUTHN` are included because passkeys are explicitly selected as the minimum authenticator. `REF-AWS-*` are included now that AWS is the confirmed cloud provider (SQ-4/SQ-10). No ABAC-engine-specific cheat sheet exists in the selected library; OPA/Rego policy design guidance is sourced from `REF-ASVS-5`'s access-control chapter and `REF-API-2023`, kept general rather than citing OPA's own (non-OWASP/NIST) documentation as a security-authoritative source. `REF-GIN-112` was provided directly by the user as pasted text rather than a local file path or URL — its exact content is retained in this session's history; it is cited here by name/date per the Reference Accuracy Rules since no path/URL exists for it.
 
 ---
 
@@ -279,6 +282,54 @@ No local secure-coding prompt library was found in this execution environment (c
   - **References:** `REF-SSDF`, `REF-CICD`
   - **Status:** TO BE DECIDED (SQ-16)
 
+### Backend framework (Go 1.27 / Gin v1.12.0)
+
+Synthesized from `REF-GIN-112`, applied on top of the rules above rather than replacing them (e.g. Gin's middleware chain is *how* SEC-TRUST-1 and SEC-AUTHZ-1 get enforced in code, not a separate authorization model).
+
+- **SEC-GIN-1** The Server-side API MUST build its Gin engine with `gin.New()` and an explicit, reviewed middleware stack (authentication, OPA/Rego ABAC check, rate limiting, structured logging, recovery) registered via `Use` before any protected route group is created — `gin.Default()`'s bundled `Logger`/`Recovery` MUST NOT be mistaken for an enforcement stack. Every rejecting handler/middleware MUST call `c.AbortWithStatus`/`c.AbortWithStatusJSON` and return immediately.
+  - **Applies to:** Server-side API
+  - **Verification:** A route registered after the security middleware group carries the full chain; a rejection test confirms the downstream handler never executes
+  - **References:** `REF-GIN-112`, `REF-ASVS-5`
+  - **Status:** CONFIRMED — traces to SEC-TRUST-1, SEC-AUTHZ-1
+
+- **SEC-GIN-2** Handlers MUST read the authenticated principal via `c.Get` with an explicit presence/type check, and MUST run the OPA/Rego authorization decision against the specific resource resolved from `c.Param`/bound input before acting — resolving a route parameter is not itself an authorization check.
+  - **Applies to:** All ABAC-scoped endpoints
+  - **Verification:** Test that a missing or wrongly-typed context value is rejected rather than treated as an implicit valid principal
+  - **References:** `REF-GIN-112`
+  - **Status:** CONFIRMED — traces to SEC-AUTHZ-1
+
+- **SEC-GIN-3** Routes MUST register only the specific HTTP methods they need (no `gin.Any`). Static assets, admin routes, and `NoRoute`/`NoMethod` fallback handlers MUST enforce the same authentication/ABAC checks as explicitly protected routes rather than relying on obscurity.
+  - **References:** `REF-GIN-112`
+  - **Status:** CONFIRMED — traces to SEC-TRUST-1
+
+- **SEC-GIN-4** REST inputs MUST be bound with explicit, endpoint-specific binders and per-operation request structs that exclude server-owned fields (id, owner, status, ABAC-relevant flags) — omitting a `json` tag MUST NOT be relied on to hide a field. `gin.EnableJsonDecoderDisallowUnknownFields()` MUST be enabled, and a binding error MUST abort the request before any partially-bound value is used.
+  - **References:** `REF-GIN-112`, `REF-INPUTVAL`
+  - **Status:** CONFIRMED — traces to SEC-INPUT-1
+
+- **SEC-GIN-5** `SetTrustedProxies` MUST be configured to exact known proxy addresses/CIDRs (or `nil` for direct traffic), and startup MUST fail on misconfiguration. `c.ClientIP()` MUST be treated as a supplemental signal only, never as an authenticated identity or the sole actor identifier in an audit-log entry. `TrustedPlatform` and legacy App Engine header trust MUST remain disabled unless ingress guarantees those headers cannot be spoofed by a client.
+  - **References:** `REF-GIN-112`
+  - **Status:** CONFIRMED — traces to SEC-LOG-1, NFR-2
+
+- **SEC-GIN-6** If any cookie-based session or CSRF-relevant state is ever introduced, `c.SetSameSite` MUST be called before `c.SetCookie` with a deliberate value, and CORS middleware MUST use an explicit origin allow-list, never a wildcard combined with credentials. Given the confirmed session model is DPoP-bound bearer tokens (SEC-SESSION-1), cookie-based session authentication SHOULD NOT be introduced without a corresponding CSRF-defense decision being made first.
+  - **References:** `REF-GIN-112`, `REF-SESSION`
+  - **Status:** CONFIRMED — traces to SEC-HTTP-3, SEC-SESSION-1
+
+- **SEC-GIN-7** All import-file (SEC-TRUST-2/SEC-TRUST-3) and report-template uploads MUST be bounded by an explicit request body-size limit applied before binding/`FormFile`/`MultipartForm` — Gin's default in-memory multipart threshold MUST NOT be treated as an upload-size cap. Uploaded files MUST be written to generated destinations outside executable/static roots using exclusive file-creation; `SaveUploadedFile`'s default overwrite/symlink-following behavior MUST NOT be used on a caller-influenced destination path.
+  - **References:** `REF-GIN-112`, `REF-INPUTVAL`
+  - **Status:** CONFIRMED — traces to SEC-TRUST-2, SEC-TRUST-3
+
+- **SEC-GIN-8** Responses MUST use `c.JSON` with explicit response structs; `c.Data`/`PureJSON` output containing untrusted content MUST NOT be embedded directly into an HTML or script context. Any server-side redirect target MUST be validated against an allow-list of local paths or exact approved origins before use in `c.Redirect`.
+  - **References:** `REF-GIN-112`, `REF-XSS`
+  - **Status:** CONFIRMED — traces to SEC-OUTPUT-1, SEC-OUTPUT-2
+
+- **SEC-GIN-9** Production MUST run with `GIN_MODE=release` behind an explicitly configured `http.Server` (read/write/idle timeouts, bounded shutdown) rather than `Engine.Run`'s convenience defaults. Request-scoped work MUST propagate `c.Request.Context()` (with `Engine.ContextWithFallback` enabled); the pooled `gin.Context` or its values MUST NOT be retained past the request, including in goroutines spawned by a handler.
+  - **References:** `REF-GIN-112`, `REF-SSDF`
+  - **Status:** CONFIRMED — traces to SEC-DEPLOY-2
+
+- **SEC-GIN-10** Structured request logging MUST use `LoggerWithConfig` with `SkipQueryString` enabled wherever a query string can carry a sensitive value (e.g. a signed URL or token). `gin.ErrorLogger()` MUST NOT be installed on any public-facing route, since it serializes private errors into the response. Panic recovery MUST use a custom, redacted recovery writer rather than the default recovery dump.
+  - **References:** `REF-GIN-112`, `REF-LOGGING`, `REF-ERROR`
+  - **Status:** CONFIRMED — traces to SEC-LOG-1, SEC-LOG-2
+
 ---
 
 ## Requirement and Architecture Traceability
@@ -310,6 +361,13 @@ No local secure-coding prompt library was found in this execution environment (c
 | SEC-INTEG-1, SEC-INTEG-2 | FR-11 | AI Review Assist | CONFIRMED |
 | SEC-DEPLOY-1 | — | Deployment (Terraform, AWS) | CONFIRMED |
 | SEC-DEPLOY-2 | — | CI/CD (UNKNOWN) | TO BE DECIDED (SQ-16) |
+| SEC-GIN-1, SEC-GIN-2, SEC-GIN-3 | §6, FR-13–FR-15 | Server-side API (Gin) | CONFIRMED |
+| SEC-GIN-4, SEC-GIN-7 | FR-3, FR-4, §7.2, FR-23 | Server-side API, Import Pipeline, Report Engine | CONFIRMED |
+| SEC-GIN-5 | NFR-2 | Server-side API | CONFIRMED |
+| SEC-GIN-6 | — (architecture note) | Server-side API | CONFIRMED |
+| SEC-GIN-8 | §3.4 | Server-side API, Report Engine | CONFIRMED |
+| SEC-GIN-9 | — | Server-side API, Deployment | CONFIRMED |
+| SEC-GIN-10 | NFR-2, NFR-3 | Server-side API | CONFIRMED |
 
 ---
 
@@ -332,7 +390,7 @@ These are prospective rules for future implementation; no dependency has been as
 
 - `{{CODE_QUALITY_PROMPT}}` — **RESOLVED** (no local code-quality prompt found): low cyclomatic and cognitive complexity; small cohesive functions and modules; separated presentation, business-rule, persistence, and integration concerns; explicit error handling and trust-boundary transitions; no duplicated security-sensitive logic; testability without hidden global state.
 - `{{API_SECURITY_PROMPT}}` — **RESOLVED**: `REF-API-2023` (OWASP API Security Top 10 2023) plus `REF-REST` (OWASP REST Security Cheat Sheet).
-- `{{BACKEND_FRAMEWORK_PROMPT}}` — **PARTIALLY RESOLVED**: backend framework (Go, Gin) is named, but no version is given, so no version-specific official documentation can be cited. Framework version: `TO BE DECIDED`.
+- `{{BACKEND_FRAMEWORK_PROMPT}}` — **RESOLVED**: backend framework and version are now identified (Go 1.27 baseline, Gin v1.12.0). Resolved via `REF-GIN-112`, a user-supplied Gin 1.12 Secure Coding Prompt, synthesized into `SEC-GIN-1` through `SEC-GIN-10` above. The prompt itself is designed to layer onto "the resolved Go 1.27 prompt" — that underlying Go-language-baseline prompt was not supplied in this session, so language-level (non-Gin-specific) Go secure-coding rules remain **PARTIALLY RESOLVED**; see SQ-24.
 - `{{FRONTEND_FRAMEWORK_PROMPT}}` — **PARTIALLY RESOLVED**: frontend framework (React) is named, but no version is given. `REF-XSS` serves as a framework-neutral rendering baseline (SEC-OUTPUT-1) but does not itself resolve this placeholder. Framework version: `TO BE DECIDED`.
 - `{{AUTH_PROMPT}}` — **RESOLVED**: `REF-WEBAUTHN`, `REF-FIDO`, `REF-AUTH`, `REF-SESSION`, `REF-63B`.
 - `{{DEPLOYMENT_PROMPT}}` — **RESOLVED for IaC/provider; PARTIALLY RESOLVED for CI/CD platform**: `REF-SSDF`, `REF-CICD`, `REF-IAC`, and `REF-AWS-WA-SEC`/`REF-AWS-KMS`/`REF-AWS-SECRETS` now apply given Terraform + AWS are confirmed (SQ-4, SQ-11). The specific CI/CD platform remains `UNKNOWN` (SQ-16).
@@ -353,6 +411,7 @@ These are prospective rules for future implementation; no dependency has been as
 
 Carried over from the previous revision (not yet resolved by any stakeholder decision):
 - **SQ-23** (was SQ-12's remainder) Beyond the ASVS Level 2 target, is there a fixed cadence for re-running the STRIDE threat model (e.g. per release, per quarter, per new trust boundary)?
+- **SQ-24** The Gin 1.12 Secure Coding Prompt (`REF-GIN-112`) states it should be layered on top of "the resolved Go 1.27 prompt," which was not supplied in this session. Obtain and integrate that Go-language-baseline secure-coding prompt so language-level rules (memory/concurrency safety, crypto primitives, standard-library pitfalls, etc.) are captured in `SECURITY.md` alongside the Gin-specific `SEC-GIN-*` rules.
 
 ---
 
