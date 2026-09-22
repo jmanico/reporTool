@@ -28,3 +28,6 @@ venv/
 
 # Logs
 *.log
+
+# Claude Code hook-generated audit log (runtime state, not source)
+.claude/audit.log
