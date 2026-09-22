@@ -1,5 +1,5 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="reportool-logo-title">
-  <title id="reportool-logo-title">reportTool logo</title>
+  <title id="reportool-logo-title">reporTool logo</title>
   <!-- Shield: engagement security scope. Folded corner: a structured report document. -->
   <path d="M32 4 L54 12 V30 C54 45 44 55 32 60 C20 55 10 45 10 30 V12 Z"
         fill="#1E40AF"/>

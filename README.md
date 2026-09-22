@@ -1,12 +1,12 @@
-# reportTool
+# reporTool
 
 **A platform for running and reporting pentest engagements** — built by pentesters, for pentesters.
 
-reportTool replaces the usual pile of spreadsheets, Word templates, and copy-pasted Burp exports with a single system for organizing engagements, standardizing findings, and generating client-ready reports.
+reporTool replaces the usual pile of spreadsheets, Word templates, and copy-pasted Burp exports with a single system for organizing engagements, standardizing findings, and generating client-ready reports.
 
 ## Why
 
-Pentest teams juggle many customers, each with multiple departments and engagements, each engagement generating dozens of findings that need to be triaged, reviewed, mapped to standards, and eventually turned into a report. Today that's mostly manual and mostly miserable. reportTool aims to make the finding-to-report pipeline fast, consistent, and access-controlled.
+Pentest teams juggle many customers, each with multiple departments and engagements, each engagement generating dozens of findings that need to be triaged, reviewed, mapped to standards, and eventually turned into a report. Today that's mostly manual and mostly miserable. reporTool aims to make the finding-to-report pipeline fast, consistent, and access-controlled.
 
 ## Core features
 

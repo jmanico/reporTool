@@ -1,6 +1,6 @@
 # Architecture
 
-This document is the **source of truth** for HOW reportTool is built: logical components, interfaces, data flow, trust boundaries, and technology choices with rationale. It does not restate *what* the system does (`REQUIREMENTS.md`) or *how it looks/behaves in the UI* (`DESIGN.md`) — it explains how the two are realized as a system.
+This document is the **source of truth** for HOW reporTool is built: logical components, interfaces, data flow, trust boundaries, and technology choices with rationale. It does not restate *what* the system does (`REQUIREMENTS.md`) or *how it looks/behaves in the UI* (`DESIGN.md`) — it explains how the two are realized as a system.
 
 No implementation exists yet. Everything below is architected from `REQUIREMENTS.md` and `DESIGN.md`, not from imagined code or dependencies.
 
@@ -53,7 +53,7 @@ graph TB
         [OPEN, §2 / §12.1]"])
     end
 
-    subgraph system["reportTool"]
+    subgraph system["reporTool"]
         spa["Browser Client (React SPA)"]
         api["Server-side API (Go / Gin)"]
         db[("Relational Database — 3NF")]
