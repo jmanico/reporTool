@@ -23,13 +23,13 @@ Detailed security controls (threat model, cryptographic specifics, key managemen
 | Primary use cases | See REQUIREMENTS.md |
 | Target users / actors | See REQUIREMENTS.md |
 | Runtime environment | Web application, API monolith |
-| Server framework | Go, using the Gin framework |
+| Server framework | Go **1.27** baseline, Gin **v1.12.0** (SECURITY.md `REF-GIN-112`). |
 | Client framework | React.js |
 | API style and integration model | REST |
 | Authentication | Passkey (WebAuthn) is the **minimum** authenticator for registration and login. YubiKey and smart card (PIV) are supported as additional/alternative authenticators. Target assurance level is **NIST 800-63 AAL3, authentication only** (no identity-proofing/IAL claim made). |
 | Session | Sender-constrained sessions using **DPoP (Demonstrating Proof-of-Possession) JWTs** — a bearer token alone is not sufficient to use a session. |
 | Data model expectations | Relational database, normalized to **Third Normal Form (3NF)** |
-| Deployment model | `ASSUMPTION`: "teraformn" in the architecture notes is read as **Terraform-managed infrastructure-as-code**. This states *how* infrastructure is provisioned, not *where* — target cloud provider(s)/hosting platform remain `TO BE DECIDED` (REQUIREMENTS.md §9, open question 7). The architecture note "cloud model enterprise license (review)" is carried forward as-is: `UNKNOWN` — no input source specifies which cloud provider, which enterprise licensing agreement, or what the "(review)" qualifier means procedurally; flag for human review before a provider/license is selected. |
+| Deployment model | **Terraform-managed infrastructure-as-code**, confirmed (SECURITY.md SQ-11). Cloud provider: **AWS**, single provider (SECURITY.md SQ-4). The architecture note "cloud model enterprise license (review)" remains `UNKNOWN` — flag for human review before an AWS licensing agreement is selected (SECURITY.md SQ-22). |
 | Scale expectations | Hundreds of concurrent users. Not web-scale — design favors security and data integrity over horizontal throughput. |
 | Security expectations | This system stores and manages live vulnerability data about pentest clients — a high-value target (REQUIREMENTS.md NFR-1). Detailed controls: see `SECURITY.md`. |
 
@@ -49,31 +49,33 @@ graph TB
         finalrev["Final Reviewer"]
         pm["Engagement / Project Manager"]
         admin["Admin"]
-        client(["Customer / Client — future, read-only
-        [OPEN, §2 / §12.1]"])
+        client(["Customer / Client
+        read-only portal — SECURITY.md SQ-7"])
     end
 
     subgraph system["reporTool"]
         spa["Browser Client (React SPA)"]
+        portal["Customer/Client Portal (React, read-only)"]
         api["Server-side API (Go / Gin)"]
-        db[("Relational Database — 3NF")]
+        db[("Relational Database — PostgreSQL, 3NF")]
     end
 
-    kms[["Cloud KMS / Secrets Manager
-    provider: TO BE DECIDED"]]
+    kms[["AWS KMS / Secrets Manager"]]
     scanners[["Scanner / Tool Output
-    Burp Suite (v1) + future tools"]]
+    Burp Suite, OWASP ZAP, Nessus, Nuclei (v1)"]]
     ai(["AI Review Assist
-    OPEN — advisory or blocking? §4.3, FR-11"])
+    advisory-only, first-party — §4.3, FR-11"])
 
     pentester -->|HTTPS| spa
     techrev -->|HTTPS| spa
     finalrev -->|HTTPS| spa
     pm -->|HTTPS| spa
     admin -->|HTTPS| spa
-    client -.->|future, read-only| spa
+    client -->|HTTPS| portal
 
     spa -->|REST / JSON over HTTPS
+    DPoP-bound access token| api
+    portal -->|REST / JSON over HTTPS
     DPoP-bound access token| api
     api --> db
     api -->|credential read/write,
@@ -82,7 +84,7 @@ graph TB
     scanners -->|import file| api
 
     classDef open stroke-dasharray: 4 3;
-    class client,ai open;
+    class ai open;
 ```
 
 ### Logical components
@@ -94,47 +96,56 @@ graph TB
   - **Data owned or accessed:** No system-of-record data. Transient UI state only.
   - **Open decisions:** Platform targets (desktop-only vs. responsive/mobile) — `TO BE DECIDED`, DESIGN.md DQ-4. Light/dark mode — `TO BE DECIDED`, DESIGN.md "Required Design Inputs."
 
+- **Customer/Client Portal (React, read-only)**
+  - **Responsibility:** Separate, read-only surface for the Customer/Client actor (SECURITY.md SQ-7), scoped to only that customer's own data. Holds no authoritative access-control or business-rule logic, identical in that respect to the Browser Client.
+  - **Inputs:** User interaction; REST/JSON responses from the API, already scoped to the caller's ABAC decision (SECURITY.md SEC-AUTHZ-6).
+  - **Outputs:** Read-only REST/JSON requests to the API; WebAuthn/passkey ceremonies delegated to the platform authenticator.
+  - **Data owned or accessed:** No system-of-record data. Transient UI state only.
+  - **Open decisions:** Authentication assurance level for this actor — `TO BE DECIDED` (SECURITY.md SQ-14). Whether it is served from a separate origin, requiring CORS — `UNKNOWN` (SECURITY.md SEC-HTTP-3).
+
 - **Server-side API (Go / Gin)**
   - **Responsibility:** Sole enforcement point for business rules and ABAC (REQUIREMENTS.md §6). Owns the finding lifecycle state machine (Draft → Technical Review → Final Review → Accepted, §5), CWE/ASVS mapping validation, and orchestration of the import and report subsystems. Every read/write to a customer, department, pentest, finding, or finding field is authorized here — never trusted from the client.
   - **Inputs:** REST requests from the browser client (bearer + DPoP proof); imported artefact files (§7); AI review-assist results (when enabled, FR-11).
   - **Outputs:** REST/JSON responses scoped to the caller's ABAC decision; audit log entries (NFR-2); generated report artifacts; credential read/write calls to the KMS boundary.
   - **Data owned or accessed:** All system-of-record business data via the persistence boundary — customers, departments, pentests, findings, finding fields, discovered assets, imported artefacts, review history, ABAC policy, report templates. Does not persist raw credential secret material itself (see Secrets/KMS Boundary).
-  - **Open decisions:** ABAC engine/standard — OPA/Rego, Cedar, or custom (REQUIREMENTS.md §6.5, open question 4). Whether AI review-assist is blocking or advisory (open question 2). Whether a finding can skip technical review, and whether a "rejected" terminal state exists (open question 3).
+  - **ABAC engine:** OPA/Rego (REQUIREMENTS.md §6.5, SECURITY.md SQ-1). AI review-assist is advisory-only (SECURITY.md SQ-2). Technical Review cannot be skipped; a `Rejected` terminal state exists (SECURITY.md SQ-9).
+  - **Open decisions:** none remaining for this component beyond REQUIREMENTS.md §12's list.
 
 - **Identity & Session Handling** *(a responsibility within the API boundary, broken out because of its distinct trust properties — not a separate deployable unless a later decision splits it out)*
   - **Responsibility:** WebAuthn passkey registration/authentication as the baseline factor; YubiKey and smart-card (PIV) as supported additional/alternative authenticators; issuance and validation of sender-constrained DPoP-bound session tokens so a stolen bearer token alone cannot be replayed. Targets AAL3 (authentication only, no identity-proofing claim).
   - **Inputs:** WebAuthn/PIV ceremony results from the browser client; DPoP proof JWTs presented alongside each API call.
   - **Outputs:** Session/access tokens bound to a client-held key; authenticated subject + attributes (role, team, assigned engagements) passed to ABAC enforcement.
   - **Data owned or accessed:** User identity, credential public keys/attestation metadata, session/token state. Does not own business data.
-  - **Open decisions:** Token/session lifetime and revocation model — `TO BE DECIDED`. Whether AAL3 step-up is required per-action or only at login — `TO BE DECIDED`.
+  - **Step-up:** Required per sensitive action, not only at login (SECURITY.md SQ-3, SEC-AUTHN-3).
+  - **Open decisions:** Concrete token/session lifetime and revocation model — `TO BE DECIDED` (SECURITY.md SQ-15).
 
 - **Data Persistence (RDBMS, 3NF)**
   - **Responsibility:** System of record for the domain hierarchy (Customer → Department → Pentest → Finding → Finding Field), discovered assets, imported artefacts, review history, ABAC policy state, and report template metadata. Enforces referential integrity across the hierarchy so ABAC scoping (§6.1) is structurally sound, not just application-checked.
   - **Inputs:** Writes only from the Server-side API — no other component talks to the database directly.
   - **Outputs:** Query results to the API.
   - **Data owned or accessed:** All relational business data listed above. Does **not** store credential secret material in plaintext (§4.5, NFR-3) — see Secrets/KMS Boundary.
-  - **Open decisions:** Specific RDBMS product — `TO BE DECIDED` (3NF relational requirement is fixed; the product is not specified by any input).
+  - **Product:** PostgreSQL, hosted on AWS (e.g. RDS for PostgreSQL) (SECURITY.md SQ-10).
 
 - **Secrets / Cloud KMS Boundary**
   - **Responsibility:** Backs engagement credentials (VPN access, scoped test accounts, API keys, §4.5) with a cloud KMS/secrets manager. The API mediates every access; the database never holds plaintext secret material (FR-17, NFR-3).
   - **Inputs:** Credential store/rotate/retrieve calls from the Server-side API, authorized by the same ABAC model as findings (FR-18).
   - **Outputs:** Decrypted credential material returned to the API only for an authorized, in-scope request; never returned to the browser client directly except as required for the authorized use.
   - **Data owned or accessed:** Engagement credential secret material, scoped per pentest.
-  - **Open decisions:** Target cloud provider(s) — one vs. an abstraction layer across several (REQUIREMENTS.md §9, open question 7). This is also where the architecture-notes item "cloud model enterprise license (review)" applies — `UNKNOWN`, needs human review before a provider is chosen.
+  - **Provider:** AWS KMS + AWS Secrets Manager, single provider (SECURITY.md SQ-4). The architecture-notes item "cloud model enterprise license (review)" remains `UNKNOWN` — needs human review (SECURITY.md SQ-22).
 
 - **Import Pipeline**
-  - **Responsibility:** Parses raw tool output (Burp Suite export first; other scanners pluggable, §7) into normalized testing-artefact records with standardized types, rather than storing opaque blobs. May generate draft findings/notes from normalized artefacts.
-  - **Inputs:** Raw export files (Burp Suite v1; format TBD per future scanner).
+  - **Responsibility:** Parses raw tool output (v1: Burp Suite, OWASP ZAP, Nessus, Nuclei — REQUIREMENTS.md §7.1, SECURITY.md SQ-5) into normalized testing-artefact records with standardized types, rather than storing opaque blobs. May generate draft findings/notes from normalized artefacts. Each format has its own isolated parser module (SECURITY.md SEC-TRUST-3).
+  - **Inputs:** Raw export files in the four v1 formats.
   - **Outputs:** Normalized artefact records linked to a pentest and, where applicable, to the findings/assets they support (FR-21).
   - **Data owned or accessed:** Imported Artefact records; writes through the Server-side API into the persistence boundary — no independent datastore.
-  - **Open decisions:** Which scanners beyond Burp Suite are in scope for v1 (open question 5). Exact per-tool parser contract — `TO BE DECIDED`.
+  - **Open decisions:** Exact per-tool parser contract — `TO BE DECIDED`.
 
 - **Report Engine**
   - **Responsibility:** Generates client-ready reports from structured finding/asset/artefact data plus a versioned template (§8), rather than hand-authored documents. Applies ABAC at generation time so a given recipient's report includes only the customer/department/pentest/finding/field data they are entitled to (FR-24, §8.4) — the engine calls the same authorization logic the API uses for interactive reads, it does not reimplement it.
   - **Inputs:** Finding/asset/artefact data (via the persistence boundary), a selected report template, the requesting/recipient identity and its ABAC scope.
-  - **Outputs:** Generated report artifact(s).
+  - **Outputs:** Generated report artifact(s) in **PDF and DOCX** (REQUIREMENTS.md §8.5, SECURITY.md SQ-6).
   - **Data owned or accessed:** Report template records (versioned, brandable per §8.2–8.3); reads (does not own) finding/asset/artefact data.
-  - **Open decisions:** Output format(s) — PDF, DOCX, both (open question 6). Whether an in-app preview precedes export — `TO BE DECIDED`.
+  - **Open decisions:** Whether an in-app preview precedes export — `TO BE DECIDED` (REQUIREMENTS.md §12).
 
 ### Primary data flows
 
@@ -188,6 +199,7 @@ graph LR
     subgraph untrusted["Untrusted — outside the system"]
         browser["User's browser / authenticator
         (passkey, YubiKey, smart card)"]
+        clientbrowser["Customer/Client portal user's browser"]
         toolfile["Uploaded scanner/tool export"]
     end
 
@@ -209,6 +221,8 @@ graph LR
 
     browser -->|"authN ceremony + DPoP-bound requests
     (never trusted for authZ decisions)"| api
+    clientbrowser -->|"authN ceremony + DPoP-bound requests,
+    read-only (SEC-AUTHZ-6)"| api
     toolfile -->|"parsed, never executed"| api
     api --> importer --> db
     api --> rpt --> db
@@ -226,17 +240,17 @@ Business-rule and ABAC enforcement happens only inside the **edge boundary** (th
 | Component / boundary | Requirement group(s) | Status |
 |---|---|---|
 | Browser Client (React SPA) | FR-1, FR-5 (data entry UI); DESIGN.md accessibility/interaction requirements | SUPPORTED |
+| Customer/Client Portal (React) | §2, SECURITY.md SQ-7, SEC-AUTHZ-6 | PARTIALLY DEFINED — read-only scope fixed; auth assurance level `TO BE DECIDED` (SQ-14) |
 | Server-side API | FR-1–FR-25 (orchestrates all functional areas; authoritative enforcement) | SUPPORTED |
-| Identity & Session Handling | FR-13, FR-14, FR-15 (subject attributes for ABAC); authentication factors per architecture notes | PARTIALLY DEFINED — mechanism (passkey/YubiKey/smart card, DPoP, AAL3) is fixed; token lifetime/revocation and step-up policy are `TO BE DECIDED` |
-| Data Persistence (RDBMS, 3NF) | FR-2, FR-7, FR-9, FR-12, FR-13 (hierarchy integrity); §3 domain model | SUPPORTED |
-| Secrets / Cloud KMS Boundary | FR-16, FR-17, FR-18 | PARTIALLY DEFINED — boundary and mediation model are fixed; provider(s) `TO BE DECIDED` (open question 7) |
-| Import Pipeline | FR-6, FR-19, FR-20, FR-21; §7 | PARTIALLY DEFINED — Burp Suite path defined; additional tool formats `TO BE DECIDED` (open question 5) |
-| Report Engine | FR-22, FR-23, FR-24, FR-25; §8 | PARTIALLY DEFINED — ABAC-aware generation and templating flow defined; output format(s) and in-app preview `TO BE DECIDED` (open question 6) |
-| ABAC Decision (cross-cutting, enforced within the Server-side API) | FR-13, FR-14, FR-15; §6 | TO BE DECIDED — engine/standard not chosen (open question 4) |
-| AI-assisted review pass | FR-11 | TO BE DECIDED — blocking vs. advisory not decided (open question 2) |
-| Review lifecycle terminal/skip states | §5, FR-9, FR-10, FR-12 | TO BE DECIDED — open question 3 |
-| Customer/Client read-only portal | §2, §11 | TO BE DECIDED — out of scope for v1 per current requirements; no component assigned |
-| Compliance / data-residency handling | §10, NFR-3 | TO BE DECIDED — open question 9; see also `SECURITY.md` |
+| Identity & Session Handling | FR-13, FR-14, FR-15 (subject attributes for ABAC); authentication factors per architecture notes | PARTIALLY DEFINED — mechanism (passkey/YubiKey/smart card, DPoP, AAL3) and step-up policy (SECURITY.md SQ-3) are fixed; concrete token lifetime/revocation values `TO BE DECIDED` (SQ-15) |
+| Data Persistence (RDBMS, 3NF) | FR-2, FR-7, FR-9, FR-12, FR-13 (hierarchy integrity); §3 domain model | SUPPORTED — PostgreSQL (SECURITY.md SQ-10) |
+| Secrets / Cloud KMS Boundary | FR-16, FR-17, FR-18 | SUPPORTED — AWS KMS/Secrets Manager (SECURITY.md SQ-4) |
+| Import Pipeline | FR-6, FR-19, FR-20, FR-21; §7 | SUPPORTED — v1 scanner scope fixed (SECURITY.md SQ-5); per-tool parser contract `TO BE DECIDED` |
+| Report Engine | FR-22, FR-23, FR-24, FR-25; §8 | PARTIALLY DEFINED — ABAC-aware generation, templating, and output formats (§8.5) defined; in-app preview `TO BE DECIDED` |
+| ABAC Decision (cross-cutting, enforced within the Server-side API) | FR-13, FR-14, FR-15; §6.5 | SUPPORTED — OPA/Rego (SECURITY.md SQ-1) |
+| AI-assisted review pass | FR-11 | SUPPORTED — advisory-only (SECURITY.md SQ-2); exact check list remains open (REQUIREMENTS.md §12) |
+| Review lifecycle terminal/skip states | §5, FR-9, FR-10, FR-12 | SUPPORTED — no skip of Technical Review, `Rejected` terminal state added (SECURITY.md SQ-9) |
+| Compliance / data-residency handling | §10, NFR-4 | PARTIALLY DEFINED — regimes fixed (SOC 2, GDPR, ISO 27001; SECURITY.md SQ-8); residency/evidence cadence `TO BE DECIDED` |
 
 ---
 

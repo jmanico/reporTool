@@ -24,7 +24,7 @@ reporTool is a platform for a pentest group to run and report on security testin
 | **Technical Reviewer** | Reviews a finding for technical accuracy before it moves forward. |
 | **Final Reviewer** | Signs off on a finding/report before client delivery (e.g. team lead, QA). |
 | **Engagement/Project Manager** | Manages customers, departments, and pentest engagements; assigns pentesters; tracks status. |
-| **Customer/Client (read-only, future)** | May eventually get scoped, read-only access to their own findings/reports. `[OPEN — is client portal access in scope for v1?]` |
+| **Customer/Client (read-only)** | Scoped, read-only access to their own customer's findings/reports. In scope for v1 (SECURITY.md SQ-7). |
 | **Admin** | Manages users, roles, ABAC policies, KMS/secrets configuration, and report templates. |
 
 ## 3. Core domain model
@@ -93,7 +93,7 @@ Raw or semi-structured output imported from a tool (Burp Suite export, other sca
 ### 4.3 Review & acceptance workflow
 - FR-9: Findings move through a defined lifecycle: **Author (draft) → Technical Review → Final Review → Accepted**.
 - FR-10: Reviewers are access-controlled — only users granted reviewer access to a given finding/pentest can act on it at that stage.
-- FR-11: An optional **AI-assisted review pass** can run before a finding is routed to human technical review, to catch obvious issues (missing evidence, inconsistent severity, unmapped CWE/ASVS, etc.) `[OPEN: what does the AI reviewer check, and is it blocking or advisory?]`
+- FR-11: An optional **AI-assisted review pass** can run before a finding is routed to human technical review, to catch obvious issues (missing evidence, inconsistent severity, unmapped CWE/ASVS, etc.). It is **advisory only** (SECURITY.md SQ-2) — it cannot block or bypass the review workflow. `[OPEN: the exact check list beyond this example set]`
 - FR-12: Full review history (who, when, what changed, comments) is retained per finding.
 
 ### 4.4 Access control (ABAC)
@@ -130,7 +130,7 @@ Accepted → included in report
 ```
 
 - A finding can be sent back a stage with comments at any review step.
-- `[OPEN: Can a finding skip technical review for low-severity/informational items? Is there a "rejected" terminal state?]`
+- No finding may skip Technical Review. A `Rejected` terminal state is reachable from Technical Review or Final Review (SECURITY.md SQ-9).
 
 ## 6. Access control model (ABAC)
 
@@ -142,14 +142,13 @@ Accepted → included in report
   - **Context** — e.g. review stage, time-bound engagement access
 - 6.3 Access at a broader scope (e.g. a pentest) does not automatically imply access to every field at a narrower scope (e.g. a specific sensitive finding field) — narrower-scope policies can further restrict.
 - 6.4 Field-level control exists because some finding fields (e.g. client-sensitive evidence, internal-only remediation cost notes) may need different visibility than the finding as a whole.
-- `[OPEN: Choose/confirm the ABAC engine or standard — e.g. OPA/Rego, Cedar, or a custom policy model.]`
+- 6.5 ABAC engine: **OPA/Rego** (SECURITY.md SQ-1).
 
 ## 7. Data import
 
-- 7.1 Burp Suite export is the first supported import source.
+- 7.1 v1 import sources: **Burp Suite, OWASP ZAP, Nessus, and Nuclei** (SECURITY.md SQ-5).
 - 7.2 Import pipeline: raw file → parser (per tool/format) → normalized artefact records → optional auto-generated findings/notes with timestamps.
 - 7.3 Testing artefacts have standardized types (e.g. `access-requirement`, `automated-note`, `scan-result`) so the report engine and UI can render them consistently regardless of source tool.
-- `[OPEN: Which additional scanners/tools beyond Burp are in scope for v1 — e.g. Nessus, Nuclei, OWASP ZAP?]`
 
 ## 8. Report engine
 
@@ -157,15 +156,15 @@ Accepted → included in report
 - 8.2 Templates support customer- and team-level branding (logos, styling).
 - 8.3 Templates are versioned so a baseline template can be updated without breaking in-flight reports.
 - 8.4 Report generation respects ABAC — a given report recipient sees only the customer/department/pentest/finding/field data they're entitled to.
-- `[OPEN: Output format(s) — PDF, DOCX, both? Is there an in-app preview before export?]`
+- 8.5 Output formats: **PDF and DOCX** (SECURITY.md SQ-6).
+- `[OPEN: Is there an in-app preview before export?]`
 
 ## 9. Architecture (constraints, not final design)
 
 - 9.1 API + web application (client/server split).
-- 9.2 **RDBMS-driven** — relational database is the system of record for engagements, findings, users, and access-control state.
-- 9.3 **Cloud KMS / Secrets Manager** integration for engagement credential storage (see §4.5).
+- 9.2 **RDBMS-driven** — relational database is the system of record for engagements, findings, users, and access-control state. Product: **PostgreSQL** (SECURITY.md SQ-10).
+- 9.3 **Cloud KMS / Secrets Manager** integration for engagement credential storage (see §4.5). Provider: **AWS**, single provider (SECURITY.md SQ-4).
 - 9.4 Import pipeline must be pluggable/extensible to add new scanner/tool formats over time.
-- `[OPEN: Target cloud provider(s) for KMS/Secrets — AWS, Azure, GCP, or provider-agnostic via an abstraction layer?]`
 - `[OPEN: Deployment model — single-tenant per pentest group, or multi-tenant SaaS?]`
 
 ## 10. Non-functional requirements
@@ -173,11 +172,10 @@ Accepted → included in report
 - NFR-1: All customer/finding data must be protected at least to the standard expected of pentest engagement data (this system will itself hold sensitive vulnerability data about clients — it is a high-value target).
 - NFR-2: Full audit logging of access and changes to findings, credentials, and ABAC policy, given the sensitivity of the data.
 - NFR-3: Credentials are never stored in plaintext at rest or logged.
-- `[OPEN: Compliance targets — SOC 2, ISO 27001? Data residency requirements?]`
+- NFR-4: Compliance targets: **SOC 2 Type II, GDPR, and ISO 27001** (SECURITY.md SQ-8). Concrete data-residency region and control-evidence cadence remain open (SECURITY.md SQ-17, SQ-18).
 
 ## 11. Out of scope (for now)
 
-- Client-facing self-service portal (tracked as an open question in §2, not committed)
 - Billing/invoicing
 - Scheduling/calendaring beyond basic engagement start/end dates
 
@@ -185,15 +183,9 @@ Accepted → included in report
 
 A running list, also inlined above as `[OPEN]` markers:
 
-1. Is a read-only client portal in scope for v1?
-2. What exactly does the AI review pass check, and is it blocking or advisory?
-3. Can findings skip technical review? Is there a "rejected" terminal state in the workflow?
-4. Which ABAC engine/standard will we build on (OPA/Rego, Cedar, custom)?
-5. Which scanners/tools beyond Burp Suite are in scope for v1 import?
-6. What report output formats are required (PDF/DOCX/both)?
-7. Which cloud provider(s) for KMS/Secrets — one, or abstracted across several?
-8. Single-tenant vs. multi-tenant deployment model?
-9. Compliance/data-residency targets?
+1. What exactly does the AI review pass check beyond being advisory-only (§4.3, FR-11; mode resolved by SECURITY.md SQ-2)?
+2. Is there an in-app report preview before export (§8)?
+3. Single-tenant vs. multi-tenant deployment model (§9)?
 
 ---
 

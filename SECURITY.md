@@ -15,7 +15,7 @@ Security notes supplied alongside this task add constraints but never silently o
 
 ## Resolved Security Decisions (2026-09-21)
 
-The stakeholder decisions below resolve the open questions raised in the previous revision of this document. They are recorded here as the authoritative security-posture decisions; where a decision adds to or clarifies `REQUIREMENTS.md` or `ARCHITECTURE.md` rather than merely filling a gap those documents already flagged as open, that is called out under **Decisions Requiring Requirements/Architecture Sync**.
+The stakeholder decisions below resolve the open questions raised in the previous revision of this document. They are recorded here as the authoritative security-posture decisions.
 
 | ID | Question | Decision |
 |---|---|---|
@@ -33,17 +33,7 @@ The stakeholder decisions below resolve the open questions raised in the previou
 | SQ-12 | Assurance target / threat-model method | **OWASP ASVS Level 2**, with a **STRIDE** threat model produced/updated at design time for each major architectural change |
 | SQ-13 | Passkey/authenticator recovery | **Admin-assisted re-enrollment** after out-of-band identity verification; users are additionally encouraged (not yet mandated) to register a second authenticator at onboarding so single-device loss isn't a lockout |
 
-These decisions are reflected in the **Required Security Inputs**, **Provisional Security Rules**, and **Prompt Placeholders** sections below. New follow-on questions each decision raises are carried into **Open Security Questions**.
-
-### Decisions Requiring Requirements/Architecture Sync
-
-These stakeholder decisions extend or change facts stated in `REQUIREMENTS.md`/`ARCHITECTURE.md` rather than merely resolving an `[OPEN]` marker already scoped there as a gap. `SECURITY.md` records them so security work can proceed, but **`REQUIREMENTS.md` and `ARCHITECTURE.md` should be updated to match** — per this document's own rule, a security note must not silently override those documents.
-
-- **Customer/Client portal (SQ-7):** `REQUIREMENTS.md` §2 lists this persona as `[OPEN — is client portal access in scope for v1?]` and §11 lists it under "Out of scope (for now)." The decision above sets it in scope for v1. `REQUIREMENTS.md` §2/§11 and `ARCHITECTURE.md`'s system context diagram (which currently marks the client actor as open/dashed) should be updated accordingly, including the read-only access model and which fields a customer may see by default.
-- **Rejected terminal state (SQ-9):** `REQUIREMENTS.md` §5 documents only `Draft → Technical Review → Final Review → Accepted` with send-back-with-comments, and does not currently define a terminal `Rejected` state. `REQUIREMENTS.md` §5 and `ARCHITECTURE.md`'s finding-lifecycle description should be updated to add it.
-- **Scanner scope (SQ-5):** `REQUIREMENTS.md` §7.1 states "Burp Suite export is the first supported import source" and §12 lists additional scanners as an open question. Committing to ZAP, Nessus, and Nuclide all for v1 is a scope increase beyond "first supported source" that `REQUIREMENTS.md` §7 should reflect (FR-19–FR-21 and the import pipeline's v1 acceptance criteria).
-- **Report formats (SQ-6):** `REQUIREMENTS.md` §8's open question 6 is resolved to PDF and DOCX; `REQUIREMENTS.md` §8 should record this so FR-22–FR-25 can be scoped against a fixed format set.
-- **Backend runtime/framework version (Gin 1.12 prompt, 2026-09-21):** `ARCHITECTURE.md` names "Go, using the Gin framework" without a version. A Gin 1.12 Secure Coding Prompt supplied directly in-session pins this to **Go 1.27 baseline, Gin v1.12.0** (Gin requires Go ≥ 1.25.0). `ARCHITECTURE.md`'s "Required Architecture Inputs" table should be updated to record these versions as a fixed decision, not left implicit in `SECURITY.md` alone.
+These decisions are reflected in the **Required Security Inputs**, **Provisional Security Rules**, and **Prompt Placeholders** sections below. New follow-on questions each decision raises are carried into **Open Security Questions**. Five of these decisions (customer portal in scope, `Rejected` terminal state, v1 scanner scope, report output formats, Gin/Go version) extended facts stated in `REQUIREMENTS.md`/`ARCHITECTURE.md` rather than merely resolving a gap already marked open there; both documents have been synced to match as of 2026-09-21.
 
 ---
 
@@ -56,7 +46,7 @@ These stakeholder decisions extend or change facts stated in `REQUIREMENTS.md`/`
 | Architecture source | ARCHITECTURE.md |
 | System purpose | A platform for a pentest group to run and report on security testing engagements — standardized finding capture/review/CWE-ASVS mapping, multi-customer engagement tracking, structured report generation, fine-grained access control, and safe engagement credential management (REQUIREMENTS.md §1). |
 | Application profile | Web application, API monolith. Server: Go **1.27** baseline, Gin **v1.12.0** (per the Gin 1.12 Secure Coding Prompt supplied 2026-09-21 — see `REF-GIN-112`; this pins a version ARCHITECTURE.md leaves open, see "Decisions Requiring Requirements/Architecture Sync"). Client: React SPA (version `UNKNOWN`). API style: REST/JSON. Data store: **PostgreSQL**, normalized to 3NF (SQ-10). |
-| Users / actors / roles | Pentester (Author), Technical Reviewer, Final Reviewer, Engagement/Project Manager, Admin (REQUIREMENTS.md §2). **A read-only Customer/Client portal actor is now in scope for v1 (SQ-7)** — see "Decisions Requiring Requirements/Architecture Sync" above; its authentication assurance level is a new open question (SQ-14). |
+| Users / actors / roles | Pentester (Author), Technical Reviewer, Final Reviewer, Engagement/Project Manager, Admin, and a read-only Customer/Client portal actor (REQUIREMENTS.md §2, SQ-7); its authentication assurance level is open (SQ-14). |
 | Public interfaces and trust boundaries | Browser Client (React SPA, internal actors) and a read-only Customer/Client portal surface (new, SQ-7) are both untrusted and hold no authoritative access-control or business-rule logic. The Server-side API (Go/Gin) is the edge boundary: TLS terminus, DPoP validation, sole ABAC enforcement point. Uploaded scanner/tool export files (now Burp Suite, ZAP, Nessus, Nuclei — SQ-5) and uploaded report templates (DOCX/PDF baselines, FR-23) are untrusted input. The AWS KMS/Secrets Manager boundary is external and reached only by the API. |
 | Sensitive or regulated data | Live vulnerability data about pentest clients across the full domain hierarchy (customer, department, pentest, finding, finding field, discovered asset, imported artefact) — a high-value target (REQUIREMENTS.md §1, NFR-1). Some finding fields carry client-sensitive evidence or internal-only remediation-cost notes requiring finer-grained visibility (REQUIREMENTS.md §3.5, §6.4). Engagement credentials (VPN, scoped test accounts, API keys) (REQUIREMENTS.md §4.5). Under GDPR scope (SQ-8), finding/asset data that identifies or relates to an individual is personal data. |
 | External integrations | **AWS KMS + AWS Secrets Manager** (SQ-4/SQ-10). Scanner/tool exports: **Burp Suite, OWASP ZAP, Nessus, and Nuclei, all in v1** (SQ-5). AI Review Assist: **advisory-only, first-party/in-house model** (SQ-2). |
@@ -339,20 +329,20 @@ Synthesized from `REF-GIN-112`, applied on top of the rules above rather than re
 | SEC-TRUST-1 | §6, FR-13–FR-15 | Server-side API, Browser Client, Customer/Client portal | CONFIRMED |
 | SEC-TRUST-2, SEC-TRUST-3 | §7 | Import Pipeline, Report Engine | CONFIRMED |
 | SEC-AUTHN-1, SEC-AUTHN-2, SEC-AUTHN-3 | §2 (actors) | Identity & Session Handling | CONFIRMED |
-| SEC-AUTHN-4 | §2, §12.1 | Identity & Session Handling, Customer/Client portal | TO BE DECIDED (SQ-14) |
+| SEC-AUTHN-4 | §2 | Identity & Session Handling, Customer/Client portal | TO BE DECIDED (SQ-14) |
 | SEC-SESSION-1 | — (architecture note) | Identity & Session Handling | CONFIRMED |
 | SEC-SESSION-2 | — | Identity & Session Handling | TO BE DECIDED (SQ-15) |
 | SEC-AUTHZ-1, SEC-AUTHZ-2, SEC-AUTHZ-3 | FR-13, FR-14, FR-15, §6.1, §6.3 | Server-side API (ABAC decision point) | CONFIRMED |
-| SEC-AUTHZ-4 | §6.5 (open question 4) | ABAC Decision (OPA/Rego) | CONFIRMED |
+| SEC-AUTHZ-4 | §6.5 | ABAC Decision (OPA/Rego) | CONFIRMED |
 | SEC-AUTHZ-5 | FR-24, §8.4 | Report Engine | CONFIRMED |
-| SEC-AUTHZ-6 | §2, §11, §12.1 | Customer/Client portal | CONFIRMED |
+| SEC-AUTHZ-6 | §2 | Customer/Client portal | CONFIRMED |
 | SEC-HTTP-1, SEC-HTTP-2 | — (architecture note) | Server-side API | CONFIRMED |
 | SEC-HTTP-3 | — | Server-side API, Customer/Client portal | TO BE DECIDED |
 | SEC-INPUT-1 | FR-3, FR-4, §7.2 | Server-side API, Import Pipeline | CONFIRMED |
 | SEC-OUTPUT-1 | §3.4 | Browser Client, Customer/Client portal | CONFIRMED |
 | SEC-OUTPUT-2 | FR-23 | Report Engine | CONFIRMED |
 | SEC-DATA-1 | NFR-1, §3.5, §6.4 | Server-side API, Report Engine | CONFIRMED |
-| SEC-DATA-2 | §10 (open question 9) | — | PARTIALLY DEFINED |
+| SEC-DATA-2 | NFR-4 | — | PARTIALLY DEFINED |
 | SEC-DATA-3 | §10 | Server-side API, Data Persistence | TO BE DECIDED (SQ-19) |
 | SEC-SECRETS-1, SEC-SECRETS-2, SEC-SECRETS-3 | FR-16, FR-17, FR-18, NFR-3 | Secrets/Cloud KMS Boundary (AWS), Server-side API | CONFIRMED |
 | SEC-SECRETS-4 | NFR-3 | Secrets/Cloud KMS Boundary, CI/CD | CONFIRMED |
