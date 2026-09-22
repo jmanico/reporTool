@@ -108,7 +108,7 @@ graph TB
   - **Inputs:** REST requests from the browser client (bearer + DPoP proof); imported artefact files (§7); AI review-assist results (when enabled, FR-11).
   - **Outputs:** REST/JSON responses scoped to the caller's ABAC decision; audit log entries (NFR-2); generated report artifacts; credential read/write calls to the KMS boundary.
   - **Data owned or accessed:** All system-of-record business data via the persistence boundary — customers, departments, pentests, findings, finding fields, discovered assets, imported artefacts, review history, ABAC policy, report templates. Does not persist raw credential secret material itself (see Secrets/KMS Boundary).
-  - **ABAC engine:** OPA/Rego (REQUIREMENTS.md §6.5, SECURITY.md SQ-1). AI review-assist is advisory-only (SECURITY.md SQ-2). Technical Review cannot be skipped; a `Rejected` terminal state exists (SECURITY.md SQ-9).
+  - **ABAC engine:** OPA/Rego (REQUIREMENTS.md §6.5, SECURITY.md SQ-1), loaded only as an integrity-verified, versioned policy artifact and failing closed when unavailable (SECURITY.md SEC-AUTHZ-8, SEC-AUTHZ-10; threats T-005, T-026). AI review-assist is advisory-only (SECURITY.md SQ-2). The finding lifecycle is enforced here as an explicit server-side state machine: Technical Review cannot be skipped, a `Rejected` terminal state exists (SECURITY.md SQ-9), and author/technical-reviewer/final-reviewer must be distinct actors (SECURITY.md SEC-WORKFLOW-1, SEC-AUTHZ-11; threats T-006, T-029).
   - **Open decisions:** none remaining for this component beyond REQUIREMENTS.md §12's list.
 
 - **Identity & Session Handling** *(a responsibility within the API boundary, broken out because of its distinct trust properties — not a separate deployable unless a later decision splits it out)*
@@ -145,7 +145,30 @@ graph TB
   - **Inputs:** Finding/asset/artefact data (via the persistence boundary), a selected report template, the requesting/recipient identity and its ABAC scope.
   - **Outputs:** Generated report artifact(s) in **PDF and DOCX** (REQUIREMENTS.md §8.5, SECURITY.md SQ-6).
   - **Data owned or accessed:** Report template records (versioned, brandable per §8.2–8.3); reads (does not own) finding/asset/artefact data.
-  - **Open decisions:** Whether an in-app preview precedes export — `TO BE DECIDED` (REQUIREMENTS.md §12).
+  - **Open decisions:** Whether an in-app preview precedes export — `TO BE DECIDED` (REQUIREMENTS.md §12). Whether artifacts are retrieved through the portal or exported out of the system — `TO BE DECIDED` (SECURITY.md SQ-31).
+
+*The three components below were introduced by the 2026-09-21 STRIDE threat model (SECURITY.md). Each exists because a control could not be placed correctly on the previous component set; the driving threat is named.*
+
+- **Async Job Runner** *(threats T-024, T-025; REQUIREMENTS.md FR-32)*
+  - **Responsibility:** Executes import parsing and report generation outside the request path as tracked, resource-bounded jobs, so that a large or adversarial submission cannot consume request-handling capacity. Enforces the bounds in SECURITY.md SEC-TRUST-7 and runs in the egress-denied context required by SEC-TRUST-6.
+  - **Inputs:** Job submissions from the Server-side API, carrying the submitting actor's identity and ABAC scope — a job never runs under a service or elevated identity (SEC-TRUST-5).
+  - **Outputs:** Job status and failure reasons surfaced through the API; normalized artefact records and generated report artifacts written through the API's owning interfaces (DR-2).
+  - **Data owned or accessed:** Transient job state only. Owns no business data.
+  - **Open decisions:** Execution substrate (in-process worker pool vs. separate workers) and per-format resource limits — `TO BE DECIDED`.
+
+- **Report Artifact Store** *(threat T-016; SECURITY.md SEC-DATA-5)*
+  - **Responsibility:** Holds generated PDF/DOCX artifacts separately from the relational system of record. Retrieval is authorized on every access against the same OPA/Rego decision point that produced the artifact — possession of a URL grants nothing. Encrypted at rest with a defined retention period (SEC-DATA-5, SEC-DATA-6).
+  - **Inputs:** Artifacts written by the Report Engine via the Server-side API; retrieval requests mediated by the API.
+  - **Outputs:** Artifact bytes, only to an ABAC-authorized recipient.
+  - **Data owned or accessed:** Generated report artifacts and their retention metadata. It does not own the generation record, which lives in the Audit Log Store (SEC-LOG-5).
+  - **Open decisions:** Concrete storage service and retention period — `TO BE DECIDED` (SECURITY.md SQ-25, SQ-31).
+
+- **Audit Log Store** *(threats T-010, T-013, T-014, T-030; REQUIREMENTS.md NFR-2)*
+  - **Responsibility:** Append-only, tamper-evident record of access and change to findings, credentials, ABAC policy, administrative actions, lifecycle transitions (bound to the step-up authentication event, SEC-LOG-4), and report generation (SEC-LOG-5). It is a distinct store from the business database specifically so the application's database role cannot update or delete it (SEC-LOG-3), and so its retention is governed separately.
+  - **Inputs:** Append-only writes from the Server-side API.
+  - **Outputs:** Read access to authorized actors, itself ABAC-controlled.
+  - **Data owned or accessed:** Audit and generation records. Owns no business data.
+  - **Open decisions:** Backing store and integrity mechanism, and whether its retention is independent of business-data retention — `TO BE DECIDED` (SECURITY.md SQ-30).
 
 ### Primary data flows
 
@@ -211,7 +234,16 @@ graph LR
 
     subgraph trusted["Trusted internal boundary"]
         db[("RDBMS")]
-        importer["Import parsers"]
+        audit[("Audit Log Store
+        append-only — SEC-LOG-3")]
+        artifacts[("Report Artifact Store
+        ABAC-checked on retrieval — SEC-DATA-5")]
+    end
+
+    subgraph sandbox["Untrusted-input processing boundary — egress denied (SEC-TRUST-6)"]
+        jobs["Async Job Runner"]
+        importer["Import parsers
+        (one isolated module per format)"]
         rpt["Report engine"]
     end
 
@@ -224,14 +256,23 @@ graph LR
     clientbrowser -->|"authN ceremony + DPoP-bound requests,
     read-only (SEC-AUTHZ-6)"| api
     toolfile -->|"parsed, never executed"| api
-    api --> importer --> db
-    api --> rpt --> db
+    api -->|"bounded job, submitter's ABAC scope"| jobs
+    jobs --> importer
+    jobs --> rpt
+    importer -->|"via API-owned interfaces"| db
+    rpt -->|"via API-owned interfaces"| db
+    rpt --> artifacts
+    api --> db
+    api -->|"append only"| audit
+    api -->|"mediated, ABAC-checked"| artifacts
     api -->|"mediated, ABAC-checked"| kms
 
     classDef boundary fill:none,stroke-dasharray: 2 2;
 ```
 
 Business-rule and ABAC enforcement happens only inside the **edge boundary** (the API). The browser client is treated as fully untrusted input — it may only display what the API already decided to reveal. The KMS boundary is external and separately governed: the API mediates every credential access, and no other component talks to it directly.
+
+The **untrusted-input processing boundary** was added by the 2026-09-21 threat model. Import parsing and report generation handle attacker-influenced content (scanner exports, uploaded templates, finding text originating from client systems), so they run outside the request path with outbound network access denied by default and no route to the cloud instance metadata service (SECURITY.md SEC-TRUST-6, threat T-018), under explicit resource bounds (SEC-TRUST-7, threats T-007/T-024/T-025), and under the submitting actor's ABAC scope rather than a service identity (SEC-TRUST-5, threats T-017/T-031). The **Audit Log Store** is separated from the RDBMS so that no application role — including Admin — can erase evidence of its own actions (SEC-LOG-3, threats T-010/T-030), and the **Report Artifact Store** is separated so a generated report is authorized on every retrieval rather than protected by URL secrecy (SEC-DATA-5, threat T-016).
 
 ---
 
@@ -251,6 +292,11 @@ Business-rule and ABAC enforcement happens only inside the **edge boundary** (th
 | AI-assisted review pass | FR-11 | SUPPORTED — advisory-only (SECURITY.md SQ-2); exact check list remains open (REQUIREMENTS.md §12) |
 | Review lifecycle terminal/skip states | §5, FR-9, FR-10, FR-12 | SUPPORTED — no skip of Technical Review, `Rejected` terminal state added (SECURITY.md SQ-9) |
 | Compliance / data-residency handling | §10, NFR-4 | PARTIALLY DEFINED — regimes fixed (SOC 2, GDPR, ISO 27001; SECURITY.md SQ-8); residency/evidence cadence `TO BE DECIDED` |
+| Async Job Runner | FR-32; §9.5 | SUPPORTED — boundary and bounds fixed (SECURITY.md SEC-TRUST-6, SEC-TRUST-7; threats T-024, T-025); execution substrate and per-format limits `TO BE DECIDED` |
+| Report Artifact Store | FR-24, FR-28, §8.4 | PARTIALLY DEFINED — per-retrieval authorization and encryption fixed (SECURITY.md SEC-DATA-5; threat T-016); storage service, retention period, and delivery model `TO BE DECIDED` (SQ-25, SQ-31) |
+| Audit Log Store | NFR-2, FR-12, FR-26 | PARTIALLY DEFINED — append-only/tamper-evident properties and recorded events fixed (SECURITY.md SEC-LOG-3, SEC-LOG-4, SEC-LOG-5; threats T-010, T-013, T-014, T-030); backing store and integrity mechanism `TO BE DECIDED` (SQ-30) |
+| Separation of duties in review | FR-27, §5 | SUPPORTED — enforced at the ABAC decision point (SECURITY.md SEC-AUTHZ-11; threat T-029); small-team exception path `TO BE DECIDED` (SQ-27) |
+| Retention and disposal | FR-28, NFR-4 | PARTIALLY DEFINED — schedule is system-enforced and per-customer (SECURITY.md SEC-DATA-7; threat T-021); periods `TO BE DECIDED` (SQ-25) |
 
 ---
 
@@ -263,7 +309,10 @@ Business-rule and ABAC enforcement happens only inside the **edge boundary** (th
 - **DR-5** Each business object in the domain hierarchy (Customer, Department, Pentest, Finding, Finding Field, Discovered Asset, Imported Artefact) has exactly one owning component (Data Persistence, mediated by the Server-side API) responsible for its mutation. The Report Engine and Import Pipeline read or append data through that owner; they do not maintain independent copies of business state.
 - **DR-6** All access-control decisions — at every scope level (customer, department, pentest, finding, finding field) — are evaluated by a single ABAC decision point reachable only from within the Server-side API. No component (including the Report Engine) may implement a parallel or shortcut authorization check.
 - **DR-7** Dependencies between boundaries must cross a documented interface (REST for Browser Client ↔ API; an internal service interface for API ↔ Import Pipeline/Report Engine; a data-access interface for API ↔ Persistence; a mediated credential interface for API ↔ KMS). No boundary may depend on another's internal implementation details, and no circular dependency between boundaries is permitted.
-- **DR-8** These rules hold regardless of which RDBMS product, cloud provider(s), ABAC engine, or deployment topology are ultimately chosen — none of DR-1 through DR-7 assumes a specific vendor or framework beyond what `REQUIREMENTS.md` and the architecture notes already fix (Go/Gin, React, REST, DPoP, 3NF relational).
+- **DR-9** Components inside the untrusted-input processing boundary (Async Job Runner, Import Pipeline, Report Engine) must not open outbound network connections, and must not reach the cloud instance metadata service or any internal service other than the API-owned interfaces they write through. A future need for an outbound call is an explicit, recorded allow-list decision, never a parser or renderer capability. *(SECURITY.md SEC-TRUST-6, threat T-018.)*
+- **DR-10** The Audit Log Store is append-only from every direction: no component, and no database role used by the application, may update or delete its records. Components write audit entries only through the Server-side API's append interface. *(SECURITY.md SEC-LOG-3, threats T-010, T-030.)*
+- **DR-11** A generated report artifact is reachable only through the Server-side API, which re-authorizes every retrieval against the same ABAC decision point that produced it. No component may serve artifacts directly, and no design may substitute an unguessable URL for that check. *(SECURITY.md SEC-DATA-5, threat T-016.)*
+- **DR-8** These rules hold regardless of which RDBMS product, cloud provider(s), ABAC engine, or deployment topology are ultimately chosen — none of DR-1 through DR-7 and DR-9 through DR-11 assumes a specific vendor or framework beyond what `REQUIREMENTS.md` and the architecture notes already fix (Go/Gin, React, REST, DPoP, 3NF relational).
 
 ---
 

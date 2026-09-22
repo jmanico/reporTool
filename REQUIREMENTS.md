@@ -116,6 +116,18 @@ Raw or semi-structured output imported from a tool (Burp Suite export, other sca
 - FR-23: Admins/managers can upload a baseline report template and modify it.
 - FR-24: Templates are access-control aware — a generated report only includes sections/fields the recipient is entitled to see, consistent with ABAC (§4.4).
 - FR-25: Customer and team logos/branding can be uploaded and applied to generated reports.
+- FR-26: Every generated report produces a durable generation record — who requested it, the recipient scope it was generated under, the template version, and the exact set of findings/assets/artefacts (with versions) it contained — so a delivered report can be reconstructed and disputed content resolved. Enforcement detail: SECURITY.md SEC-LOG-5 (threat T-014).
+
+### 4.8 Accountability and operational safety
+
+*(Added by the 2026-09-21 threat model; each item is functional behavior a user or operator observes. The corresponding enforcement rules live in SECURITY.md.)*
+
+- FR-27: The system enforces separation of duties in the review workflow — a finding's author cannot technically or finally review it, the technical reviewer cannot also perform its final review, and no user can grant themselves reviewer rights. The UI surfaces why an action is unavailable rather than failing silently. Enforcement: SECURITY.md SEC-AUTHZ-11 (threat T-029). `[OPEN: small-team exception path — SECURITY.md SQ-27]`
+- FR-28: Findings, evidence, imported artefacts, and generated reports are governed by a per-customer retention schedule tied to the engagement lifecycle, after which they are disposed of. Authorized users can see an engagement's retention state and upcoming disposal. Enforcement: SECURITY.md SEC-DATA-7 (threat T-021). `[OPEN: concrete retention periods — SECURITY.md SQ-25]`
+- FR-29: Imported artefacts and any findings auto-generated from them are attributed to the importing user, scoped to exactly one pentest, and enter the workflow at `Draft` — an import never creates content in a review or accepted state, and never on behalf of another user. Enforcement: SECURITY.md SEC-TRUST-5 (threats T-017, T-031).
+- FR-30: Recovery of a lost authenticator is performed as an admin-assisted re-enrollment (SECURITY.md SQ-13) that requires two authorized approvers, notifies the account owner out of band, and ends the account's existing sessions. Enforcement: SECURITY.md SEC-AUTHN-5 (threat T-001).
+- FR-31: Engagement credential retrieval records the requesting user, engagement, and stated purpose, and credentials are rotated or revoked when the engagement closes or an assigned pentester's access is removed. Enforcement: SECURITY.md SEC-SECRETS-5 (threat T-019).
+- FR-32: Imports and report generation run as tracked asynchronous jobs with visible status, bounded resource limits, and a clear failure reason when a submission exceeds those limits — a large or malformed submission never degrades the rest of the system for other users. Enforcement: SECURITY.md SEC-TRUST-7 (threats T-024, T-025).
 
 ## 5. Finding lifecycle (workflow)
 
@@ -131,6 +143,8 @@ Accepted → included in report
 
 - A finding can be sent back a stage with comments at any review step.
 - No finding may skip Technical Review. A `Rejected` terminal state is reachable from Technical Review or Final Review (SECURITY.md SQ-9).
+- The lifecycle is enforced server-side as a state machine, and an `Accepted` finding is not silently editable — a content change is either refused or returns the finding to review (SECURITY.md SEC-WORKFLOW-1, threat T-006).
+- Author, technical reviewer, and final reviewer must be three distinct users (FR-27).
 
 ## 6. Access control model (ABAC)
 
@@ -165,12 +179,13 @@ Accepted → included in report
 - 9.2 **RDBMS-driven** — relational database is the system of record for engagements, findings, users, and access-control state. Product: **PostgreSQL** (SECURITY.md SQ-10).
 - 9.3 **Cloud KMS / Secrets Manager** integration for engagement credential storage (see §4.5). Provider: **AWS**, single provider (SECURITY.md SQ-4).
 - 9.4 Import pipeline must be pluggable/extensible to add new scanner/tool formats over time.
-- `[OPEN: Deployment model — single-tenant per pentest group, or multi-tenant SaaS?]`
+- 9.5 Imports and report generation execute as asynchronous jobs rather than in the request path (FR-32); see ARCHITECTURE.md "Async Job Runner."
+- `[OPEN: Deployment model — single-tenant per pentest group, or multi-tenant SaaS? The threat model assumes the stricter multi-tenant reading until decided — SECURITY.md SQ-26]`
 
 ## 10. Non-functional requirements
 
 - NFR-1: All customer/finding data must be protected at least to the standard expected of pentest engagement data (this system will itself hold sensitive vulnerability data about clients — it is a high-value target).
-- NFR-2: Full audit logging of access and changes to findings, credentials, and ABAC policy, given the sensitivity of the data.
+- NFR-2: Full audit logging of access and changes to findings, credentials, and ABAC policy, given the sensitivity of the data. The audit trail is append-only and tamper-evident, and not erasable by any application role including Admin (SECURITY.md SEC-LOG-3, threat T-010).
 - NFR-3: Credentials are never stored in plaintext at rest or logged.
 - NFR-4: Compliance targets: **SOC 2 Type II, GDPR, and ISO 27001** (SECURITY.md SQ-8). Concrete data-residency region and control-evidence cadence remain open (SECURITY.md SQ-17, SQ-18).
 
@@ -185,7 +200,10 @@ A running list, also inlined above as `[OPEN]` markers:
 
 1. What exactly does the AI review pass check beyond being advisory-only (§4.3, FR-11; mode resolved by SECURITY.md SQ-2)?
 2. Is there an in-app report preview before export (§8)?
-3. Single-tenant vs. multi-tenant deployment model (§9)?
+3. Single-tenant vs. multi-tenant deployment model (§9; SECURITY.md SQ-26)?
+4. Concrete retention periods for findings, evidence, artefacts, and reports (§4.8, FR-28; SECURITY.md SQ-25)?
+5. Is a separation-of-duties exception permitted on small engagements where no second reviewer exists (§4.8, FR-27; SECURITY.md SQ-27)?
+6. Are generated reports delivered inside the system (portal retrieval under live authorization) or exported out of it (§8; SECURITY.md SQ-31)?
 
 ---
 
