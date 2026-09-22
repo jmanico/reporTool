@@ -1,6 +1,6 @@
 # Security
 
-This document is the **source of truth** for reportTool's security posture: threat model status, security requirements, controls, and trust-boundary enforcement. It does not restate *what* the system does (`REQUIREMENTS.md`), *how it is built* (`ARCHITECTURE.md`), or *how it looks/behaves in the UI* (`DESIGN.md`) — it defines the security rules those documents must be built and verified against.
+This document is the **source of truth** for reporTool's security posture: threat model status, security requirements, controls, and trust-boundary enforcement. It does not restate *what* the system does (`REQUIREMENTS.md`), *how it is built* (`ARCHITECTURE.md`), or *how it looks/behaves in the UI* (`DESIGN.md`) — it defines the security rules those documents must be built and verified against.
 
 No implementation exists yet. Nothing below infers a framework, auth mechanism, database, provider, CI/CD system, or regulatory obligation the input documents don't name.
 
@@ -402,7 +402,7 @@ These are prospective rules for future implementation; no dependency has been as
 - **SQ-14** What authentication assurance level applies to the Customer/Client portal actor — the same AAL3 passkey requirement as internal users, or a different/lower bar appropriate for read-only external customers? (follow-on from SQ-7)
 - **SQ-15** What are the concrete session/DPoP-token lifetime values and the specific revocation mechanism? (follow-on from SQ-3)
 - **SQ-16** What CI/CD platform will execute Terraform plans/applies and application builds/deploys (e.g. GitHub Actions or another system)? (follow-on from SQ-11)
-- **SQ-17** Which AWS region(s) will host reportTool, and does GDPR scope require EU-specific data residency? (follow-on from SQ-4/SQ-8)
+- **SQ-17** Which AWS region(s) will host reporTool, and does GDPR scope require EU-specific data residency? (follow-on from SQ-4/SQ-8)
 - **SQ-18** What audit/evidence cadence and control ownership satisfies the SOC 2 Type II and ISO 27001 targets (e.g. access-review frequency, named control owner)? (follow-on from SQ-8)
 - **SQ-19** What concrete mechanism satisfies GDPR data-subject export/deletion/rectification requests against finding/asset data that may contain personal data, and who is authorized to invoke it? (follow-on from SQ-8)
 - **SQ-20** Should OPA be deployed as a centralized decision service or embedded per-API-instance, and what is the Rego policy versioning/release process? (follow-on from SQ-1)

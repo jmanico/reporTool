@@ -1,6 +1,6 @@
 # Requirements
 
-This document is the **source of truth** for reportTool. It describes what the system must do, for whom, and the constraints it must operate under. Architecture and implementation decisions should trace back to a requirement in this document; if they can't, either the requirement is missing or the work is out of scope.
+This document is the **source of truth** for reporTool. It describes what the system must do, for whom, and the constraints it must operate under. Architecture and implementation decisions should trace back to a requirement in this document; if they can't, either the requirement is missing or the work is out of scope.
 
 Status: **draft, actively evolving.** Sections marked `[OPEN]` are known gaps that need a decision before implementation.
 
@@ -8,7 +8,7 @@ Status: **draft, actively evolving.** Sections marked `[OPEN]` are known gaps th
 
 ## 1. Purpose
 
-reportTool is a platform for a pentest group to run and report on security testing engagements. It replaces ad-hoc spreadsheets, Word templates, and manual copy/paste from tools like Burp Suite with a system that:
+reporTool is a platform for a pentest group to run and report on security testing engagements. It replaces ad-hoc spreadsheets, Word templates, and manual copy/paste from tools like Burp Suite with a system that:
 
 - Standardizes how findings are captured, reviewed, and mapped to CWE/ASVS
 - Tracks engagements across many customers and departments

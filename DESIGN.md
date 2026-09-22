@@ -1,6 +1,6 @@
-# reportTool Design Language
+# reporTool Design Language
 
-This document is the source of truth for reportTool's visual and frontend design language. It is derived solely from `REQUIREMENTS.md`. Where requirements don't yet say enough to make a design call, that gap is marked `UNKNOWN` (fact not provided) or `TO BE DECIDED` (decision not yet made) rather than invented.
+This document is the source of truth for reporTool's visual and frontend design language. It is derived solely from `REQUIREMENTS.md`. Where requirements don't yet say enough to make a design call, that gap is marked `UNKNOWN` (fact not provided) or `TO BE DECIDED` (decision not yet made) rather than invented.
 
 A note on branding inputs: a marketing-style design brief (referencing a third-party company's public brand assets and colors) was supplied alongside this task as an "initial suggestion." `REQUIREMENTS.md` makes no mention of that company, of a client/parent-brand relationship, or of any confirmed visual identity, so none of that material's brand direction, palette, or logo concept was adopted here — using an unrelated real organization's brand without a confirmed relationship risks trademark confusion, which `REQUIREMENTS.md` gives no basis to resolve. The logo and palette below are original and neutral. See DQ-1.
 
@@ -96,7 +96,7 @@ Target conformance: WCAG 2.2 AA.
 
 ## Open Questions
 
-- DQ-1: A design brief referencing a specific third-party company's brand (colors, logo concept, name spelling) was supplied as inspiration but has no basis in `REQUIREMENTS.md`. Is reportTool associated with that company, and if so, should its brand be adopted deliberately (with confirmed authorization) rather than left out as done here?
-- DQ-2: What is the product's confirmed display name and capitalization (`REQUIREMENTS.md` uses "reportTool"; the supplied inspiration material used a different spelling), and is a wordmark needed alongside the logo mark?
+- DQ-1: A design brief referencing a specific third-party company's brand (colors, logo concept, name spelling) was supplied as inspiration but has no basis in `REQUIREMENTS.md`. Is reporTool associated with that company, and if so, should its brand be adopted deliberately (with confirmed authorization) rather than left out as done here?
+- DQ-2: What is the product's confirmed display name and capitalization (`REQUIREMENTS.md` uses "reporTool"; the supplied inspiration material used a different spelling), and is a wordmark needed alongside the logo mark?
 - DQ-3: `REQUIREMENTS.md` §3.4 leaves the severity scoring methodology open (CVSS vs. custom). Severity badge colors/labels in the UI depend on that decision.
 - DQ-4: Are mobile/tablet platform targets in scope, or is this a desktop-only internal tool? This affects whether the responsive breakpoints above need real design work or are just a safety net.
